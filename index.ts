@@ -4,6 +4,7 @@ import fs = require('fs');
 import express = require('express');
 import body_parser = require('body-parser');
 import { OverpassJob } from './cron';
+import { TransformJob } from './transform';
 import { pathSep } from './helpers';
 
 var resource_dir : string = 'resources';
@@ -43,3 +44,7 @@ console.log('Magic happens on port ' + port_num + ".");
 
 /* Start Cronjob */
 let cronjob = new OverpassJob('* * */6 * * *', query_dir, resource_dir);
+
+/* Start Transformation */
+let transform_overpass_resources = new TransformJob();
+transform_overpass_resources.clean_geojson_files(resource_dir);
