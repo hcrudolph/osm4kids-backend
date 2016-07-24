@@ -1,22 +1,25 @@
 import fs = require('fs');
 import { baseName, pathSep } from "./helpers";
+import * as cons from "./constants";
+
 var _ = require('lodash');
 var geojson = require('geojson');
 
 export class TransformJob {
 
     constructor() {
+
     }
 
-    transform(transform_dir: string) {
-        var base_dir = process.cwd();
-        var complete_transform_dir = base_dir + pathSep() + transform_dir;
-
-        startTransform(complete_transform_dir);
+    transform_overpass_to_clean() {
+        transform_to_clean(cons.BASE_DIR + pathSep() + cons.RESOURCES);
+    }
+    merge_overpass_with_kidsle_kb() {
+        merge_overpass_with_kidsle_kb(cons.BASE_DIR + pathSep() + cons.RESOURCES);
     }
 }
 
-function startTransform(complete_transform_dir: string) {
+function transform_to_clean(complete_transform_dir: string) {
 
     fs.readdir(complete_transform_dir, function (err, query_files) {
         if (err) throw err;
@@ -83,6 +86,77 @@ function startTransform(complete_transform_dir: string) {
                     }
                 });
 
+            }
+        }
+    });
+}
+
+function merge_overpass_with_kidsle_kb(complete_transform_dir: string) {
+
+    fs.readdir(complete_transform_dir, function (err, query_files) {
+        if (err) throw err;
+        for (var i in query_files) {
+
+            if (_.endsWith(query_files[i], cons.ENDING_KIDSLE_KB)) {
+
+                /* product means information-type like playgrounds, schools, doctors or daycare */
+                var product: string = _.replace(query_files[i], cons.ENDING_KIDSLE_KB, '');
+
+                var full_path_kidsle_kb_file: string = complete_transform_dir + pathSep() + query_files[i];
+                var full_path_overpass_file: string = complete_transform_dir + pathSep() + _.replace(query_files[i], cons.ENDING_KIDSLE_KB, cons.ENDING_OP_CLEAN);
+
+                var content_kidsle_kb_file: string = fs.readFileSync(full_path_kidsle_kb_file).toString();
+                var content_overpass_file: string = fs.readFileSync(full_path_overpass_file).toString();
+
+                var json_content_kidsle_kb_file: string = JSON.parse(content_kidsle_kb_file)['features'];
+                var json_content_overpass_file: string = JSON.parse(content_overpass_file)['features'];
+
+                let return_Array: any[] = [];
+
+                _(json_content_overpass_file).forEach(function (value_overpass) {
+                    var op_lon: string = value_overpass['geometry']['coordinates'][0];
+                    var op_lat: string = value_overpass['geometry']['coordinates'][1];
+                    var kidsle_properties = new Array();
+
+                    _(json_content_kidsle_kb_file).forEach(function (value_kidsle) {
+                        var kidsle_lon: string = value_kidsle['geometry']['coordinates'][0];
+                        var kidsle_lat: string = value_kidsle['geometry']['coordinates'][1];
+
+                        // if op-latlon == kidsle-latnon
+                        if (op_lat == kidsle_lat && op_lon == kidsle_lon) {
+                            kidsle_properties = value_kidsle['properties'];
+                        }
+                    });
+
+                    /* assign overpass-tags with kidsle-tags  */
+                    return_Array.push({
+                        id: value_overpass['id'],
+                        longitude: value_overpass['geometry']['coordinates'][0],
+                        latitude: value_overpass['geometry']['coordinates'][1],
+                        tags: _.assign(value_overpass['properties']['tags'], kidsle_properties)
+                    });
+                });
+
+                let return_array_geojson: any = geojson.parse(return_Array, { Point: ['latitude', 'longitude'] });
+                let target_fileName: string = complete_transform_dir + pathSep() + product + cons.ENDING_OP_CLEAN_MERGE_KIDSLE;
+
+                fs.unlink(target_fileName, (err) => {
+                    if (err) {
+                        // throw err;
+                        console.log('not successfully deleted ' + target_fileName);
+                    }
+                    console.log('successfully deleted ' + target_fileName);
+                });
+
+
+                fs.writeFile(target_fileName, JSON.stringify(return_array_geojson, null, 2), (err) => {
+                    if (err) {
+                        // throw err;
+                        console.log('not successfully created ' + target_fileName);
+                    }
+                    console.log('successfully created ' + target_fileName);
+
+                });
             }
         }
     });
