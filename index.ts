@@ -47,7 +47,7 @@ app.use('/api/playgrounds', function (req, res, next) {
 });
 
 app.use('/api/playgrounds_clean', function (req, res, next) {
-    let complete_path : string = resource_dir + pathSep() + 'playgrounds_clean.geojson';
+    let complete_path : string = resource_dir + pathSep() + 'playgrounds_OP_clean.geojson';
     fs.readFile(complete_path, 'utf8', function(err, data) {
         if (err || data === 'undefined') data = '{}';
         res.json(JSON.parse(data));
@@ -55,7 +55,7 @@ app.use('/api/playgrounds_clean', function (req, res, next) {
 });
 
 app.use('/api/playgrounds_kidsle_geojson', function (req, res, next) {
-    let complete_path : string = resource_dir + pathSep() + 'kidsle'+ pathSep() + 'playgrounds_kidsle_spreadsheet.geojson';
+    let complete_path : string = resource_dir + pathSep() + 'playgrounds_kidsle_kb.geojson';
     fs.readFile(complete_path, 'utf8', function(err, data) {
         if (err || data === 'undefined') data = '{}';
         res.json(JSON.parse(data));
@@ -90,4 +90,5 @@ let cronjob = new OverpassJob('0 0 * * * *', query_dir, resource_dir);
 
 /* Start Transformation */
 let transform_overpass_resources = new TransformJob();
-transform_overpass_resources.transform(resource_dir);
+transform_overpass_resources.transform_overpass_to_clean();
+transform_overpass_resources.merge_overpass_with_kidsle_kb();
